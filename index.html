@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#f6f7f9; --panel:#ffffff; --ink:#1f2329; --muted:#6b7280;
-    --line:#e5e7eb; --brand:#c0392b; --brand-soft:#fdecea; --hi:#fff3bf;
+    --line:#e5e7eb; --brand:#c0392b; --brand-soft:#fdecea;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--ink);
@@ -48,14 +48,11 @@
   mark{background:var(--hi);border-radius:2px;padding:0 1px;}
   .rlist{margin-top:10px;display:flex;flex-direction:column;gap:8px;}
   .ritem{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden;}
-  .rhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;cursor:pointer;}
-  .rhead:hover{background:#fafbfc;}
+  .rhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;}
   .rname{font-size:15px;font-weight:600;}
   .rcode{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);}
   .rtotal{margin-left:auto;font-size:14px;font-weight:700;color:var(--brand);}
-  .rtoggle{color:var(--muted);font-size:12px;width:16px;text-align:center;}
-  .rchart{display:none;padding:6px 14px 14px;border-top:1px solid var(--line);}
-  .rchart svg{height:240px;}
+  .rchart{padding:6px 14px 14px;border-top:1px solid var(--line);}
 
   /* 批量查询 */
   .batch textarea{width:100%;min-height:120px;padding:12px 14px;font-size:14px;line-height:1.6;
@@ -220,8 +217,6 @@ function cf(n){
 }
 const full = n => (+n||0).toLocaleString("zh-CN",{minimumFractionDigits:2,maximumFractionDigits:2});
 function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
-function hl(t,q){if(!q)return escapeHtml(t);const i=t.toLowerCase().indexOf(q.toLowerCase());
-  if(i<0)return escapeHtml(t);return escapeHtml(t.slice(0,i))+"<mark>"+escapeHtml(t.slice(i,i+q.length))+"</mark>"+escapeHtml(t.slice(i+q.length));}
 // 子序列匹配：needle 的字符按顺序出现在 hay 中（可不连续）。如「保定诚业」命中「保定市诚业…」
 function subseq(hay, needle){
   if(!needle) return true;
@@ -230,21 +225,6 @@ function subseq(hay, needle){
     if(hay[j]===needle[i]) i++;
   }
   return i===needle.length;
-}
-// 高亮子序列命中的字符（贪心，不要求连续）
-function hlSub(t,q){
-  if(!q) return escapeHtml(t);
-  const tl=t.toLowerCase(), ql=q.toLowerCase();
-  let qIndex=0; const markPos=new Set();
-  for(let j=0;j<t.length && qIndex<ql.length;j++){
-    if(tl[j]===ql[qIndex]){ markPos.add(j); qIndex++; }
-  }
-  if(markPos.size===0) return escapeHtml(t);
-  let out="";
-  for(let j=0;j<t.length;j++){
-    out += markPos.has(j)? "<mark>"+escapeHtml(t[j])+"</mark>" : escapeHtml(t[j]);
-  }
-  return out;
 }
 
 // 折线趋势图（SVG，自包含）
@@ -440,34 +420,19 @@ function render(){
   if(list.length===0){ empty.style.display="block"; res.innerHTML=""; stats.style.display="none"; return; }
   empty.style.display="none";
   stats.style.display="block";
-  stats.innerHTML = `匹配 <b class="hl">${list.length}</b> 家客户` + (list.length>1?`（已列出全部，点击任意一行展开趋势图）`:``) + `，合计 <b>${cf(list.reduce((s,d)=>s+d.total,0))}</b> 元`;
+  stats.innerHTML = `匹配 <b class="hl">${list.length}</b> 家客户，合计 <b>${cf(list.reduce((s,d)=>s+d.total,0))}</b> 元`;
 
-  // 命中较少时自动展开趋势图；命中较多时以可滚动列表呈现，点击单行展开
-  const autoOpen = list.length <= 8;
+  // 命中客户全部直接展开趋势图与付款明细，无需点击切换
   res.innerHTML = `<div class="rlist">` + list.map(d=>{
     return `<div class="ritem">
-      <div class="rhead" onclick="toggleChart('${d.code}')">
-        <span class="rname">${hlSub(d.name,q)}</span>
-        <span class="rcode">${hlSub(d.code,q)}</span>
-        <span class="rtoggle" id="tg-${d.code}">${autoOpen?'▾':'▸'}</span>
+      <div class="rhead">
+        <span class="rname">${escapeHtml(d.name)}</span>
+        <span class="rcode">${escapeHtml(d.code)}</span>
         <span class="rtotal">${full(d.total)} 元</span>
       </div>
-      <div class="rchart" id="ch-${d.code}" style="${autoOpen?'display:block':'display:none'}">${autoOpen?detailHTML(d):''}</div>
+      <div class="rchart">${detailHTML(d)}</div>
     </div>`;
   }).join("") + `</div>`;
-}
-function toggleChart(code){
-  const ch = document.getElementById('ch-'+code);
-  if(!ch) return;
-  if(ch.style.display==='none'){
-    const d = DATA.find(x=>x.code===code);
-    if(d) ch.innerHTML = detailHTML(d);
-    ch.style.display='block';
-    const tg = document.getElementById('tg-'+code); if(tg) tg.textContent='▾';
-  } else {
-    ch.style.display='none';
-    const tg = document.getElementById('tg-'+code); if(tg) tg.textContent='▸';
-  }
 }
 
 /* ---------- 批量查询 ---------- */
