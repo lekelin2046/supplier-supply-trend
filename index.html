@@ -257,7 +257,7 @@ function trendSVG(m){
   </svg>`;
 }
 
-/* ---------- 付款明细：采购主体每月供货额 + 占比饼图 ---------- */
+/* ---------- 付款明细：采购主体每月付款额 + 占比饼图 ---------- */
 const PIE_COLORS = ["#c0392b","#e67e22","#f1c40f","#27ae60","#16a085","#2980b9","#8e44ad","#d35400","#7f8c8d","#2c3e50","#c0392b","#16a085"];
 // 饼图：前 8 大采购主体 + 其他
 function pieSVG(items, grand){
@@ -305,7 +305,7 @@ function payerSection(d){
     <tfoot><tr><td>合计</td>${foot}<td class="total">${full(grand)}</td><td></td></tr></tfoot>
   </table></div>`;
   const pie = pieSVG(items, grand);
-  return `<div class="payer-block"><div class="payer-head">各付款单位每月供货额（合计 ${full(grand)} 元）</div>${tbl}${pie}</div>`;
+  return `<div class="payer-block"><div class="payer-head">各付款单位每月付款额（合计 ${full(grand)} 元）</div>${tbl}${pie}</div>`;
 }
 // 趋势图 + 付款明细（单家查询共用）
 function detailHTML(d){
