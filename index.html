@@ -117,12 +117,8 @@
   .pay-chart{flex:1 1 360px;min-width:0;}
   .pay-chart-title{font-size:13px;font-weight:700;color:#2980b9;margin-bottom:10px;}
   .pay-chart .pie-wrap{margin-top:0;align-items:flex-start;}
-  .pay-chart .legend{max-width:none;flex:1 1 220px;min-width:0;}
-  /* 饼状图：SVG + 右侧图例 */
-  .pie-svg{flex:0 0 auto;width:220px;max-width:40%;min-width:180px;height:auto;}
-  .legend .leg .ln{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .legend .leg .lp{flex:0 0 auto;font-weight:700;color:#2980b9;min-width:52px;text-align:right;}
-  .legend .leg .la{flex:0 0 auto;color:#6b7280;min-width:64px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;}
+  /* 饼状图：纯饼图，信息靠扇区悬停提示 */
+  .pie-svg{display:block;width:260px;max-width:100%;height:auto;margin:0 auto;}
 </style>
 </head>
 <body>
@@ -332,8 +328,8 @@ function payTrendSVG(m){
 }
 
 // 债务人付款占比饼图：items 为 [{name,total}]，按 total 降序
-// 规则：占比 >= 5% 的主体单独成扇区并在图例列出；< 5% 全部并入「其他(N家)」。
-// 扇区不贴文字，鼠标悬停（<title> 原生提示）显示名称/占比/金额。
+// 规则：占比 >= 5% 的主体单独成扇区；< 5% 全部并入「其他(N家)」。
+// 纯饼图不显示任何文字/图例，鼠标悬停扇区（<title> 原生提示）显示名称/占比/金额。
 const PIE_COLORS = ["#2980b9","#e67e22","#27ae60","#8e44ad","#e74c3c","#16a085","#f39c12","#2c3e50","#7f8c8d","#1abc9c","#d35400","#6c5ce7"];
 function pieSVG(items){
   const grand = items.reduce((s,it)=>s+it.total,0);
@@ -350,10 +346,10 @@ function pieSVG(items){
   // 饼图：viewBox 240×240，扇区在中心，半径 80，给边缘留缓冲
   const cx=120, cy=120, r=80;
   let ang = -Math.PI/2, paths="";
-  segs.forEach(seg=>{
+  segs.forEach((seg,i)=>{
     const frac = seg.total/grand;
     const a1 = ang + frac*2*Math.PI;
-    const col = PIE_COLORS[segs.indexOf(seg)%PIE_COLORS.length];
+    const col = PIE_COLORS[i%PIE_COLORS.length];
     const x0 = cx + r*Math.cos(ang), y0 = cy + r*Math.sin(ang);
     const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
     const large = frac>0.5?1:0;
@@ -366,25 +362,9 @@ function pieSVG(items){
   const center = `<text x="120" y="116" text-anchor="middle" font-size="11" fill="#6b7280">合计</text>
     <text x="120" y="134" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2329">${cf(grand)}</text>`;
 
-  // 右侧图例：[色块] [主体名(限宽截断)] [占比%] [金额]，仅列出 >=5% 主体 + 其他
-  const legendItems = segs.map((seg,i)=>{
-    const col = PIE_COLORS[i%PIE_COLORS.length];
-    const frac = seg.total/grand;
-    const tip = `${seg.name} · ${(frac*100).toFixed(1)}% · ${cf(seg.total)}`;
-    return `<div class="leg" title="${escapeHtml(tip)}">
-      <span class="dot" style="background:${col}"></span>
-      <span class="ln">${escapeHtml(seg.name)}</span>
-      <span class="lp">${(frac*100).toFixed(1)}%</span>
-      <span class="la">${cf(seg.total)}</span>
-    </div>`;
-  }).join("");
-
-  return `<div class="pie-wrap">
-    <svg viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet" role="img" class="pie-svg">
-      ${paths}${center}
-    </svg>
-    <div class="legend">${legendItems}</div>
-  </div>`;
+  return `<svg viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet" role="img" class="pie-svg">
+    ${paths}${center}
+  </svg>`;
 }
 
 /* ---------- 付款明细：采购主体每月付款额（不含饼图） ---------- */
