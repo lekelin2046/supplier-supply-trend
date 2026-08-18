@@ -117,7 +117,12 @@
   .pay-chart{flex:1 1 360px;min-width:0;}
   .pay-chart-title{font-size:13px;font-weight:700;color:#2980b9;margin-bottom:10px;}
   .pay-chart .pie-wrap{margin-top:0;align-items:flex-start;}
-  .pay-chart .legend{max-width:340px;}
+  .pay-chart .legend{max-width:none;flex:1 1 220px;min-width:0;}
+  /* 饼状图：SVG + 右侧图例 */
+  .pie-svg{flex:0 0 auto;width:220px;max-width:40%;min-width:180px;height:auto;}
+  .legend .leg .ln{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .legend .leg .lp{flex:0 0 auto;font-weight:700;color:#2980b9;min-width:52px;text-align:right;}
+  .legend .leg .la{flex:0 0 auto;color:#6b7280;min-width:64px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;}
 </style>
 </head>
 <body>
@@ -326,19 +331,24 @@ function payTrendSVG(m){
   </svg>`;
 }
 
-// 债务人付款占比饼状图：items 为 [{name,total}]，按 total 降序
+// 债务人付款占比饼图：items 为 [{name,total}]，按 total 降序
+// 布局：左侧饼图（仅显示颜色 + 中心合计），右侧逐行图例 [色块 主体名 占比% 金额]，主体名过长截断
 const PIE_COLORS = ["#2980b9","#e67e22","#27ae60","#8e44ad","#e74c3c","#16a085","#f39c12","#2c3e50","#7f8c8d","#1abc9c","#d35400","#6c5ce7"];
 function pieSVG(items){
   const grand = items.reduce((s,it)=>s+it.total,0);
   if(!grand) return "";
-  const cx=110, cy=110, r=96;
-  // 前 9 大 + 「其他」合并，避免图例过长
+  // 前 9 大 + 其余合并为「其他(N家)」，避免图例过长
   const top = items.slice(0,9);
   const rest = items.slice(9);
   const restSum = rest.reduce((s,it)=>s+it.total,0);
   const segs = top.map(it=>it.total);
   if(restSum>0) segs.push(restSum);
-  let ang = -Math.PI/2, paths="", labels=[];
+  const segNames = top.map(it=>it.name);
+  if(restSum>0) segNames.push(`其他(${rest.length}家)`);
+
+  // 饼图：viewBox 240×240，扇区在中心，半径 80，给外侧留 80px 缓冲
+  const cx=120, cy=120, r=80;
+  let ang = -Math.PI/2, paths="";
   segs.forEach((v,i)=>{
     const frac = v/grand;
     const a1 = ang + frac*2*Math.PI;
@@ -347,16 +357,31 @@ function pieSVG(items){
     const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
     const large = frac>0.5?1:0;
     paths += `<path d="M${cx} ${cy} L${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
-    // 扇形外侧标签（名称 + 占比），避开边缘
-    const ma = (ang+a1)/2;
-    const lx = cx + (r+26)*Math.cos(ma), ly = cy + (r+26)*Math.sin(ma);
-    const nm = i<top.length ? top[i].name : `其他(${rest.length}家)`;
-    labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10.5" fill="#374151">${escapeHtml(nm.length>10?nm.slice(0,10)+"…":nm)} ${(frac*100).toFixed(1)}%</text>`;
     ang = a1;
   });
-  return `<svg viewBox="0 0 220 220" preserveAspectRatio="xMidYMid meet" role="img" style="max-width:340px">
-    ${paths}${labels}
-  </svg>`;
+  // 中心合计文字
+  const center = `<text x="120" y="116" text-anchor="middle" font-size="11" fill="#6b7280">合计</text>
+    <text x="120" y="134" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2329">${cf(grand)}</text>`;
+
+  // 右侧图例：[色块] [主体名(限宽截断)] [占比%] [金额]
+  const legendItems = segs.map((v,i)=>{
+    const col = PIE_COLORS[i%PIE_COLORS.length];
+    const frac = v/grand;
+    const fullName = segNames[i];
+    return `<div class="leg" title="${escapeHtml(fullName)}（${cf(v)} 元 · ${(frac*100).toFixed(1)}%）">
+      <span class="dot" style="background:${col}"></span>
+      <span class="ln">${escapeHtml(fullName)}</span>
+      <span class="lp">${(frac*100).toFixed(1)}%</span>
+      <span class="la">${cf(v)}</span>
+    </div>`;
+  }).join("");
+
+  return `<div class="pie-wrap">
+    <svg viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet" role="img" class="pie-svg">
+      ${paths}${center}
+    </svg>
+    <div class="legend">${legendItems}</div>
+  </div>`;
 }
 
 /* ---------- 付款明细：采购主体每月付款额（不含饼图） ---------- */
