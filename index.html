@@ -96,9 +96,15 @@
   .payer-block{margin-top:14px;}
   .payer-none{padding:14px;color:var(--muted);font-size:13px;}
   .payer-head{font-size:13px;color:var(--muted);margin-bottom:8px;}
-  .payer-tbl{box-shadow:none;margin-top:0;border:none;border-radius:0;}
-  .payer-tbl th,.payer-tbl td{font-size:12px;padding:7px 10px;}
-  .payer-tbl td.pname{min-width:200px;text-align:left;}
+  .payer-tbl{box-shadow:none;margin-top:0;border:none;border-radius:0;width:100%;table-layout:fixed;border-collapse:collapse;}
+  .payer-tbl th,.payer-tbl td{font-size:12px;padding:6px 8px;overflow:hidden;text-overflow:ellipsis;}
+  .payer-tbl th:nth-child(1),.payer-tbl td:nth-child(1){text-align:left;}
+  .payer-tbl th:nth-child(n+2),.payer-tbl td:nth-child(n+2){text-align:right;white-space:nowrap;}
+  .payer-tbl th:nth-child(1){width:20%;}
+  .payer-tbl th:nth-child(2),.payer-tbl th:nth-child(3),.payer-tbl th:nth-child(4),.payer-tbl th:nth-child(5),.payer-tbl th:nth-child(6),.payer-tbl th:nth-child(7){width:9.5%;}
+  .payer-tbl th:nth-child(8){width:12%;}
+  .payer-tbl th:nth-child(9){width:11%;}
+  .payer-tbl td.pname{min-width:0;text-align:left;white-space:normal;word-break:break-all;}
   .payer-tbl td.pct{color:#2980b9;font-weight:600;white-space:nowrap;}
   .payer-none{margin-top:12px;color:var(--muted);font-size:13px;}
   .pie-wrap{display:flex;gap:18px;align-items:center;margin-top:14px;flex-wrap:wrap;}
