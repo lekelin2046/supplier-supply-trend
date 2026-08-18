@@ -85,12 +85,21 @@
   .hidden{display:none;}
 
   /* 付款明细 */
-  .payer-block{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;}
+  .blk{margin-top:14px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--panel);}
+  .blk-head{font-size:13px;font-weight:700;color:#fff;padding:10px 14px;letter-spacing:.5px;}
+  .supply{border-color:#c0392b;}
+  .supply-head{background:#c0392b;}
+  .pay{border-color:#2980b9;}
+  .pay-head{background:#2980b9;}
+  .note{margin-top:12px;font-size:12px;color:var(--muted);background:#f5f7fa;border-left:3px solid #2980b9;padding:9px 12px;border-radius:6px;line-height:1.7;}
+  .note b{color:#c0392b;}
+  .payer-block{margin-top:14px;}
+  .payer-none{padding:14px;color:var(--muted);font-size:13px;}
   .payer-head{font-size:13px;color:var(--muted);margin-bottom:8px;}
-  .payer-tbl{box-shadow:none;margin-top:0;}
+  .payer-tbl{box-shadow:none;margin-top:0;border:none;border-radius:0;}
   .payer-tbl th,.payer-tbl td{font-size:12px;padding:7px 10px;}
   .payer-tbl td.pname{min-width:200px;text-align:left;}
-  .payer-tbl td.pct{color:var(--brand);font-weight:600;white-space:nowrap;}
+  .payer-tbl td.pct{color:#2980b9;font-weight:600;white-space:nowrap;}
   .payer-none{margin-top:12px;color:var(--muted);font-size:13px;}
   .pie-wrap{display:flex;gap:18px;align-items:center;margin-top:14px;flex-wrap:wrap;}
   .pie-wrap .pie{flex:0 0 auto;}
@@ -257,35 +266,10 @@ function trendSVG(m){
   </svg>`;
 }
 
-/* ---------- 付款明细：采购主体每月付款额 + 占比饼图 ---------- */
-const PIE_COLORS = ["#c0392b","#e67e22","#f1c40f","#27ae60","#16a085","#2980b9","#8e44ad","#d35400","#7f8c8d","#2c3e50","#c0392b","#16a085"];
-// 饼图：前 8 大采购主体 + 其他
-function pieSVG(items, grand){
-  if(!items.length) return "";
-  const W=320,H=320,cx=110,cy=110,r=100;
-  const top = items.slice(0,8);
-  let other = 0;
-  for(let i=8;i<items.length;i++) other += items[i].total;
-  const segs = top.map(it=>({name:it.name, val:it.total}));
-  if(other>0) segs.push({name:"其他（"+(items.length-8)+"家）", val:other});
-  let ang = -Math.PI/2;
-  let paths = "";
-  segs.forEach((s,i)=>{
-    const frac = s.val/grand;
-    const a2 = ang + frac*2*Math.PI;
-    const large = frac>0.5?1:0;
-    const x1=(cx+r*Math.cos(ang)).toFixed(1), y1=(cy+r*Math.sin(ang)).toFixed(1);
-    const x2=(cx+r*Math.cos(a2)).toFixed(1), y2=(cy+r*Math.sin(a2)).toFixed(1);
-    paths += `<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${PIE_COLORS[i%PIE_COLORS.length]}"/>`;
-    ang = a2;
-  });
-  let leg = segs.map((s,i)=>`<div class="leg"><span class="dot" style="background:${PIE_COLORS[i%PIE_COLORS.length]}"></span>${escapeHtml(s.name.length>16?s.name.slice(0,16)+'…':s.name)} <b>${(s.val/grand*100).toFixed(1)}%</b></div>`).join("");
-  return `<div class="pie-wrap"><svg class="pie" viewBox="0 0 ${W} ${H}" style="width:320px;height:320px" role="img"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff"/>${paths}<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#fff" stroke-width="1"/></svg><div class="legend">${leg}</div></div>`;
-}
-// 付款明细表 + 饼图
+/* ---------- 付款明细：采购主体每月付款额（不含饼图） ---------- */
 function payerSection(d){
   if(!d.pay || !Object.keys(d.pay).length){
-    return `<div class="payer-none">（该客户暂无付款明细数据）</div>`;
+    return `<div class="blk pay"><div class="blk-head pay-head">付款额明细</div><div class="payer-none">（该客户暂无付款明细数据）</div></div>`;
   }
   const items = Object.entries(d.pay).map(([idx, m])=>({
     name: PAYER_NAMES[+idx] || ("主体#"+idx),
@@ -304,12 +288,13 @@ function payerSection(d){
     <tbody>${rows}</tbody>
     <tfoot><tr><td>合计</td>${foot}<td class="total">${full(grand)}</td><td></td></tr></tfoot>
   </table></div>`;
-  const pie = pieSVG(items, grand);
-  return `<div class="payer-block"><div class="payer-head">各付款单位每月付款额（合计 ${full(grand)} 元）</div>${tbl}${pie}</div>`;
+  return `<div class="blk pay"><div class="blk-head pay-head">付款额明细：各付款单位每月付款额（合计 ${full(grand)} 元）</div>${tbl}</div>`;
 }
 // 趋势图 + 付款明细（单家查询共用）
 function detailHTML(d){
-  return trendSVG(d.m) + payerSection(d);
+  const supply = `<div class="blk supply"><div class="blk-head supply-head">供货额趋势（1–6月）</div>${trendSVG(d.m)}</div>`;
+  const note = `<div class="note">上方「<b>供货额</b>」为该客户供货金额；下方「<b>付款额</b>」为各付款主体实际付款金额。两者统计口径不同，金额可能不一致。</div>`;
+  return supply + note + payerSection(d);
 }
 
 /* ---------- Tab 切换 ---------- */
