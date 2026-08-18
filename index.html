@@ -122,18 +122,17 @@
   <div id="panel-single">
     <div class="bar">
       <div class="search">
-        <input id="q" type="text" placeholder="输入客户名称">
+        <input id="q" type="text" placeholder="请输入企业全称查询">
         <button id="clear">清空</button>
       </div>
       <div class="stats" id="stats" style="display:none"></div>
     </div>
     <div id="hint">
-      <span class="big">🔍</span>
-      请输入客户名称或编码开始查询<br>
-      支持模糊匹配，且不要求字连着：如「保定诚业」也能命中「保定市诚业…」；输入短词会列出全部匹配，点击任意一行即可展开趋势图
+      请输入企业全称查询<br>
+      按企业全称或编码精确匹配：如「广东麦格纳汽车镜像有限公司」或「BAXEC」。名称不完整将查不到结果
     </div>
     <div id="results"></div>
-    <div class="empty" id="empty" style="display:none">未找到匹配的客户</div>
+    <div class="empty" id="empty" style="display:none">未找到匹配客户，请输入完整企业全称（或编码）</div>
   </div>
 
   <!-- 批量查询 -->
@@ -317,7 +316,7 @@ function render(){
   if(!qn){ hint.style.display="block"; stats.style.display="none"; empty.style.display="none"; res.innerHTML=""; return; }
   hint.style.display="none";
 
-  const list = DATA.filter(d => subseq(d._n, qn));
+  const list = DATA.filter(d => norm(d.name)===qn || norm(d.code)===qn);
   list.sort((a,b)=>b.total-a.total);
 
   if(list.length===0){ empty.style.display="block"; res.innerHTML=""; stats.style.display="none"; return; }
