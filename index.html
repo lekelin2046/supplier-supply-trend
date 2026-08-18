@@ -121,8 +121,8 @@
   .pie-svg{display:block;width:260px;max-width:100%;height:auto;margin:0 auto;}
   /* 扇区悬停浮动提示 */
   .pie-tip{position:fixed;display:none;pointer-events:none;z-index:9999;
-    background:rgba(17,24,39,.92);color:#fff;font-size:12px;line-height:1.5;
-    padding:6px 10px;border-radius:6px;max-width:340px;white-space:nowrap;
+    background:rgba(17,24,39,.92);color:#fff;font-size:15px;line-height:1.5;
+    padding:8px 14px;border-radius:6px;max-width:380px;white-space:nowrap;
     box-shadow:0 2px 8px rgba(0,0,0,.25);}
 </style>
 </head>
@@ -358,8 +358,8 @@ function pieSVG(items){
     const x0 = cx + r*Math.cos(ang), y0 = cy + r*Math.sin(ang);
     const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
     const large = frac>0.5?1:0;
-    // 悬停提示：名称 · 占比 · 金额（存 data-tip，浮动提示读取）
-    const tip = `${seg.name} · ${(frac*100).toFixed(1)}% · ${cf(seg.total)}`;
+    // 悬停提示：名称 · 占比（存 data-tip，浮动提示读取；不显示金额）
+    const tip = `${seg.name} · ${(frac*100).toFixed(1)}%`;
     paths += `<path d="M${cx} ${cy} L${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" fill="${col}" stroke="#fff" stroke-width="1.5" style="cursor:pointer" data-tip="${escapeHtml(tip)}"></path>`;
     ang = a1;
   });
