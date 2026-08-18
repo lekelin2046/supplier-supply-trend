@@ -311,7 +311,7 @@ function batchRender(){
   const map = new Map();
   if(terms.length){
     terms.forEach(tl=>{
-      DATA.forEach(d=>{ if(d._n.includes(tl)) map.set(d.code, d); });
+      DATA.forEach(d=>{ if(norm(d.name)===tl || norm(d.code)===tl) map.set(d.code, d); });
     });
   }
   batchList = Array.from(map.values()).sort((a,b)=>b.total-a.total);
