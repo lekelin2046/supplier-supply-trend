@@ -351,7 +351,7 @@ function pieSVG(items){
 
   // 饼图：viewBox 240×240，扇区在中心，半径 80，给边缘留缓冲
   const cx=120, cy=120, r=80;
-  let ang = -Math.PI/2, paths="";
+  let ang = -Math.PI/2, paths="", labels="";
   segs.forEach((seg,i)=>{
     const frac = seg.total/grand;
     const a1 = ang + frac*2*Math.PI;
@@ -362,11 +362,18 @@ function pieSVG(items){
     // 悬停提示：名称 · 占比（存 data-tip，浮动提示读取；不显示金额）
     const tip = `${seg.name} · ${(frac*100).toFixed(1)}%`;
     paths += `<path d="M${cx} ${cy} L${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" fill="${col}" stroke="#fff" stroke-width="1.5" style="cursor:pointer" data-tip="${escapeHtml(tip)}"></path>`;
+    // 占比 >= 10% 的扇区：直接在扇区内部居中标注白色粗体百分比
+    if(frac >= 0.10){
+      const ma = (ang+a1)/2;
+      const lx = cx + r*0.56*Math.cos(ma);
+      const ly = cy + r*0.56*Math.sin(ma);
+      labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="700" fill="#fff" style="pointer-events:none">${(frac*100).toFixed(1)}%</text>`;
+    }
     ang = a1;
   });
 
   return `<svg viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet" role="img" class="pie-svg">
-    ${paths}
+    ${paths}${labels}
   </svg>`;
 }
 
