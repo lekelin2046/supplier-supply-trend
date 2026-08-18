@@ -332,47 +332,50 @@ function payTrendSVG(m){
 }
 
 // 债务人付款占比饼图：items 为 [{name,total}]，按 total 降序
-// 布局：左侧饼图（仅显示颜色 + 中心合计），右侧逐行图例 [色块 主体名 占比% 金额]，主体名过长截断
+// 规则：占比 >= 5% 的主体单独成扇区并在图例列出；< 5% 全部并入「其他(N家)」。
+// 扇区不贴文字，鼠标悬停（<title> 原生提示）显示名称/占比/金额。
 const PIE_COLORS = ["#2980b9","#e67e22","#27ae60","#8e44ad","#e74c3c","#16a085","#f39c12","#2c3e50","#7f8c8d","#1abc9c","#d35400","#6c5ce7"];
 function pieSVG(items){
   const grand = items.reduce((s,it)=>s+it.total,0);
   if(!grand) return "";
-  // 前 9 大 + 其余合并为「其他(N家)」，避免图例过长
-  const top = items.slice(0,9);
-  const rest = items.slice(9);
+  // 前 9 大中占比 >= 5% 的单独显示（上限 9 个，避免扇区过碎）；其余并入其他
+  const sorted = items.slice().sort((a,b)=>b.total-a.total);
+  const top = sorted.filter(it=>it.total/grand >= 0.05).slice(0,9);
+  const rest = sorted.filter(it=>it.total/grand < 0.05);
   const restSum = rest.reduce((s,it)=>s+it.total,0);
-  const segs = top.map(it=>it.total);
-  if(restSum>0) segs.push(restSum);
-  const segNames = top.map(it=>it.name);
-  if(restSum>0) segNames.push(`其他(${rest.length}家)`);
+  const segs = top.map(it=>({name:it.name, total:it.total}));
+  if(restSum>0) segs.push({name:`其他(${rest.length}家)`, total:restSum});
+  if(segs.length===0) return "";
 
-  // 饼图：viewBox 240×240，扇区在中心，半径 80，给外侧留 80px 缓冲
+  // 饼图：viewBox 240×240，扇区在中心，半径 80，给边缘留缓冲
   const cx=120, cy=120, r=80;
   let ang = -Math.PI/2, paths="";
-  segs.forEach((v,i)=>{
-    const frac = v/grand;
+  segs.forEach(seg=>{
+    const frac = seg.total/grand;
     const a1 = ang + frac*2*Math.PI;
-    const col = PIE_COLORS[i%PIE_COLORS.length];
+    const col = PIE_COLORS[segs.indexOf(seg)%PIE_COLORS.length];
     const x0 = cx + r*Math.cos(ang), y0 = cy + r*Math.sin(ang);
     const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
     const large = frac>0.5?1:0;
-    paths += `<path d="M${cx} ${cy} L${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
+    // 悬停提示：名称 · 占比 · 金额
+    const tip = `${seg.name} · ${(frac*100).toFixed(1)}% · ${cf(seg.total)}`;
+    paths += `<path d="M${cx} ${cy} L${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" fill="${col}" stroke="#fff" stroke-width="1.5" style="cursor:pointer"><title>${escapeHtml(tip)}</title></path>`;
     ang = a1;
   });
   // 中心合计文字
   const center = `<text x="120" y="116" text-anchor="middle" font-size="11" fill="#6b7280">合计</text>
     <text x="120" y="134" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2329">${cf(grand)}</text>`;
 
-  // 右侧图例：[色块] [主体名(限宽截断)] [占比%] [金额]
-  const legendItems = segs.map((v,i)=>{
+  // 右侧图例：[色块] [主体名(限宽截断)] [占比%] [金额]，仅列出 >=5% 主体 + 其他
+  const legendItems = segs.map((seg,i)=>{
     const col = PIE_COLORS[i%PIE_COLORS.length];
-    const frac = v/grand;
-    const fullName = segNames[i];
-    return `<div class="leg" title="${escapeHtml(fullName)}（${cf(v)} 元 · ${(frac*100).toFixed(1)}%）">
+    const frac = seg.total/grand;
+    const tip = `${seg.name} · ${(frac*100).toFixed(1)}% · ${cf(seg.total)}`;
+    return `<div class="leg" title="${escapeHtml(tip)}">
       <span class="dot" style="background:${col}"></span>
-      <span class="ln">${escapeHtml(fullName)}</span>
+      <span class="ln">${escapeHtml(seg.name)}</span>
       <span class="lp">${(frac*100).toFixed(1)}%</span>
-      <span class="la">${cf(v)}</span>
+      <span class="la">${cf(seg.total)}</span>
     </div>`;
   }).join("");
 
