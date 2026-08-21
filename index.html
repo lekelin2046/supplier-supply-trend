@@ -445,14 +445,30 @@ function combinedYoY(d){
     return d;
   }
   // 数据点 + 数值标注
-  function dots(arr, fill, bold){
+  // 数据点 + 数值标签:防重叠机制
+  // - 动态决定:另一条线在我上方(数值更大) → 我放下方;另一条线在下方 → 我放上方
+  // - 保证两条 label 永远垂直分开(中间至少有 ~32px 间距),不再堆叠
+  // - 边界避让:点太靠顶 → 标签强制下方;太靠底 → 强制上方,防溢出 viewBox
+  function dots(arr, fill, bold, otherArr){
     let s="";
     for(let i=0;i<N;i++){
       const v=arr[i]||0;
       if(v<=0) continue;
       const x=X(i), y=Y(v);
+      const ov = otherArr[i]||0;
+      let dy;
+      if(ov > 0){
+        const oy = Y(ov);
+        // 另一条线比我更靠上(oy<y)→ 我放下方让出上面;反之我放上方
+        dy = (oy < y) ? 18 : -14;
+      } else {
+        dy = -14;  // 单线无对端,默认上
+      }
+      // 边界翻转:点太靠顶,上方标签会溢出;太靠底,下方标签会溢出
+      if(dy===-14 && y < pt + 20) dy = 18;
+      if(dy===18 && y > pt+ih - 16) dy = -14;
       s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="${fill}"/>`;
-      s+=`<text x="${x.toFixed(1)}" y="${(y-8).toFixed(1)}" text-anchor="middle" font-size="10" fill="${fill}" ${bold?'font-weight="600"':''}>${cf(v)}</text>`;
+      s+=`<text x="${x.toFixed(1)}" y="${(y+dy).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${fill}" ${bold?'font-weight="600"':''}>${cf(v)}</text>`;
     }
     return s;
   }
@@ -465,7 +481,7 @@ function combinedYoY(d){
   const svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">${grid}${ylab}
     <path d="${linePath(y25)}" fill="none" stroke="${C25}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
     <path d="${linePath(y26_12)}" fill="none" stroke="${C26}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-    ${dots(y25, C25, false)}${dots(y26_12, C26, true)}${xlab}</svg>`;
+    ${dots(y25, C25, false, y26_12)}${dots(y26_12, C26, true, y25)}${xlab}</svg>`;
 
   // 统计色块:2025 H1 / 2026 H1 / 同比增幅 / 2025 全年
   // tone 决定同色系浅底 + 深字(背景-数值-副标三阶协调,对比适中)
@@ -526,18 +542,19 @@ function combinedYoY(d){
     const hasData = v5>0;
     const p = hasData ? (v6-v5)/v5*100 : null;
     const isUp = p!=null && p>=0;
-    const fillColor = p==null ? "#9aa0a6" : (isUp ? "#22c55e" : "#ef4444");
-    const textColor = p==null ? "#9aa0a6" : (isUp ? "#15803d" : "#b91c1c");
+    // 中国习惯:正增长=红,负增长(下滑)=绿;与增幅色块(g>=0红/g<0绿)统一
+    const fillColor = p==null ? "#9aa0a6" : (isUp ? "#ef4444" : "#22c55e");
+    const textColor = p==null ? "#9aa0a6" : (isUp ? "#b91c1c" : "#15803d");
     const sign = p==null?"":(isUp?"+":"");
     const pctTxt = p==null ? "—" : `${sign}${p.toFixed(1)}%`;
     const halfW=50;  // 半幅 50% 对应条半边
     const barW = p==null ? 0 : Math.min(halfW, Math.abs(p)/100*halfW);
-    const barStyle = p==null ? "" : `width:${barW}%; ${isUp?'right:50%':'left:50%'}; background:${fillColor};`;
+    const barStyle = p==null ? "" : `width:${barW}%; ${isUp?'left:50%':'right:50%'}; background:${fillColor};`;
     return `
     <div style="display:grid; grid-template-columns: 40px 92px 92px 1fr 70px; align-items:center; gap:10px; padding:6px 12px; font-size:13px; ${i>0?'border-top:1px solid #f1f3f5':''}">
       <div style="font-weight:700; color:#374151">${m}</div>
-      <div style="color:#6b7280; text-align:right; font-variant-numeric:tabular-nums; font-size:12.5px">25年 ${cf(v5)}</div>
-      <div style="color:#d03030; text-align:right; font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:600">26年 ${cf(v6)}</div>
+      <div style="color:#6b7280; text-align:right; font-variant-numeric:tabular-nums; font-size:12.5px">${cf(v5)}</div>
+      <div style="color:#d03030; text-align:right; font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:600">${cf(v6)}</div>
       <div style="position:relative; height:18px; background:#f3f4f6; border-radius:9px; overflow:hidden">
         <div style="position:absolute; left:50%; top:0; bottom:0; width:1px; background:#9aa0a6"></div>
         ${p!=null ? `<div style="position:absolute; top:0; bottom:0; ${barStyle} border-radius:9px"></div>` : ''}
@@ -546,18 +563,18 @@ function combinedYoY(d){
     </div>`;
   }).join("");
 
-  const summaryLine = (upM && dnM) ? `最高 <b style="color:#15803d">${upM.m} +${upV.toFixed(1)}%</b>　·　最低 <b style="color:${dnV>=0?'#15803d':'#b91c1c'}">${dnM.m} ${dnV>=0?'+':''}${dnV.toFixed(1)}%</b>` : "本月度同比无显著变化";
+  const summaryLine = (upM && dnM) ? `最高 <b style="color:#b91c1c">${upM.m} +${upV.toFixed(1)}%</b>　·　最低 <b style="color:${dnV>=0?'#b91c1c':'#15803d'}">${dnM.m} ${dnV>=0?'+':''}${dnV.toFixed(1)}%</b>` : "本月度同比无显著变化";
   const noteHtml = (upM && dnM && dnM.m==="2月") ? `<div style="margin-top:8px; padding:8px 12px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; font-size:12.5px; color:#9a3412">2 月下滑主因春节错位：2025 春节在 1 月底、2026 春节在 2 月中，节前备货节奏差异导致 2 月供货额走低，3–6 月已全面回升。</div>` : "";
 
   const monthSection = `
     <div style="margin-top:12px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:6px 0; box-shadow:0 1px 2px rgba(0,0,0,.02)">
       <div style="padding:10px 14px 4px; font-size:14px; font-weight:700; color:#1e293b">月度同比对照（2025 vs 2026，1–7 月）</div>
       <div style="padding:0 14px 6px; font-size:12px; color:#64748b">${summaryLine}</div>
-      <div style="display:grid; grid-template-columns: 40px 92px 92px 1fr 70px; gap:10px; padding:5px 12px; font-size:11px; color:#94a3b8; font-weight:600; border-top:1px solid #eef0f2; border-bottom:1px solid #eef0f2">
+      <div style="display:grid; grid-template-columns: 40px 92px 92px 1fr 70px; gap:10px; padding:5px 12px; font-size:11.5px; color:#475569; font-weight:600; border-top:1px solid #eef0f2; border-bottom:1px solid #eef0f2">
         <div>月份</div>
         <div style="text-align:right">2025 月度</div>
         <div style="text-align:right">2026 月度</div>
-        <div style="text-align:center; color:#94a3b8">同比（0% 居中, 100% 满格）</div>
+        <div style="text-align:center; color:#475569">同比（0% 居中, 100% 满格）</div>
         <div style="text-align:right">同比 %</div>
       </div>
       ${monthRows}
@@ -566,9 +583,9 @@ function combinedYoY(d){
   `;
 
   const legend = `
-    <div style="display:flex;gap:20px;margin-top:10px;font-size:12.5px;color:#374151;flex-wrap:wrap">
-      <span style="display:flex;align-items:center;gap:6px"><svg width="26" height="10" viewBox="0 0 26 10"><line x1="1" y1="8" x2="25" y2="4" stroke="${C25}" stroke-width="2.5"/><circle cx="7" cy="6.2" r="3" fill="${C25}"/><circle cx="19" cy="5" r="3" fill="${C25}"/></svg>2025 全年 (1–12 月)</span>
-      <span style="display:flex;align-items:center;gap:6px"><svg width="26" height="10" viewBox="0 0 26 10"><line x1="1" y1="8" x2="25" y2="4" stroke="${C26}" stroke-width="2.5"/><circle cx="7" cy="6.2" r="3" fill="${C26}"/><circle cx="19" cy="5" r="3" fill="${C26}"/></svg>2026 年 1–7 月</span>
+    <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:#374151;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:5px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${C25}"></i>2025 年</span>
+      <span style="display:flex;align-items:center;gap:5px"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${C26}"></i>2026 年</span>
     </div>
   `;
 
