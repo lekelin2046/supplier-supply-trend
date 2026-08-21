@@ -76,6 +76,18 @@
   td.name{min-width:220px;}
   td.code{color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;}
   td.total{font-weight:700;color:var(--brand);}
+  /* 批量查询表格(#bt):锁定客户编码+客户名称两列,其余列可横滚;缩小内边距与字号,争取一屏完整 */
+  #bt{border-collapse:collapse;width:100%;font-size:12.5px;}
+  #bt th,#bt td{padding:6px 9px;}
+  #bt thead th:nth-child(1),#bt thead th:nth-child(2),
+  #bt tbody td:nth-child(1),#bt tbody td:nth-child(2) {
+    position:sticky; background:#fff; z-index:3;
+  }
+  #bt thead th:nth-child(1),#bt tbody td:nth-child(1),
+  #bt tfoot td:nth-child(1) {left:0; min-width:100px;}
+  #bt thead th:nth-child(2),#bt tbody td:nth-child(2),
+  #bt tfoot td:nth-child(2) {left:100px; min-width:200px; max-width:260px; overflow:hidden; text-overflow:ellipsis;}
+  #bt tfoot td{position:sticky; background:#fafafa; z-index:2;}
   .zero{color:#b9bec6;}
   tfoot td{font-weight:700;background:#fafafa;border-top:2px solid var(--line);}
   .hidden{display:none;}
@@ -232,7 +244,7 @@
             <th data-k="m4">5月<span class="arr"></span></th>
             <th data-k="m5">6月<span class="arr"></span></th>
             <th data-k="m6">7月<span class="arr"></span></th>
-            <th data-k="total">上半年<span class="arr">▼</span></th>
+            <th data-k="total">合计<span class="arr">▼</span></th>
             <th data-k="avg">月均额<span class="arr"></span></th>
           </tr>
         </thead>
@@ -487,8 +499,8 @@ function combinedYoY(d){
   // 统计色块:2025 H1 / 2026 H1 / 同比增幅 / 2025 全年
   // tone 决定同色系浅底 + 深字(背景-数值-副标三阶协调,对比适中)
   // 增幅块:正增幅=红(中国习惯涨红),负增幅=绿(下滑绿,醒目且与红块撞色问题解决)
-  const t25h1 = y25.slice(0,6).reduce((a,b)=>a+b,0);
-  const t26h1 = y26.reduce((a,b)=>a+b,0);
+  const t25_1_7 = y25.slice(0,7).reduce((a,b)=>a+b,0);
+  const t26_1_7 = y26.slice(0,6).reduce((a,b)=>a+b,0) + (d.m7||0);
   const t25full = y25.reduce((a,b)=>a+b,0);
   const g = t25h1>0 ? (t26h1-t25h1)/t25h1*100 : null;
   const sign = g==null?"":(g>=0?"+":"");
@@ -519,14 +531,14 @@ function combinedYoY(d){
   const gTone = g==null ? "gray" : (g>=0 ? "red" : "green");
   const statRow = `
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
-      ${statBox("2025 上半年供货额", cf(t25h1), "", "blue")}
-      ${statBox("2026 上半年供货额", cf(t26h1), "", "red")}
+      ${statBox("2025年1-7月供货额", cf(t25_1_7), "", "blue")}
+      ${statBox("2026年1-7月供货额", cf(t26_1_7), "", "red")}
       ${statBox("同比增幅", gTxt, gLevel, gTone)}
       ${statBox("2025 全年供货额", cf(t25full), "", "blue")}
     </div>`;
 
   // 同比描述:总额 + 增幅 + 分月概况(1–7 月有双年数据;7 月 26 年值取 y26_12[6]=d.m7)
-  const abs=t26h1-t25h1;
+  const abs=t26_1_7-t25_1_7;
   const cls=g>=0?"up":"down";
   const ms=MONTHS12.slice(0,7).map((m,i)=>{
     const v5=y25[i]||0, v6=y26_12[i]||0;
@@ -997,7 +1009,7 @@ function render(){
 function batchVal(d,k){
   if(k==="code"||k==="name") return (d[k]||"").toLowerCase();
   if(k==="total") return d.total;
-  if(k==="avg") return d.avg==null?-1:d.avg;
+  if(k==="avg") return (d.m[4]+d.m[5]+d.m7)/3;
   if(k==="m6") return d.m7;
   return d.m[parseInt(k.slice(1))];
 }
@@ -1029,20 +1041,21 @@ function batchRenderTable(){
     return;
   }
   wrap.style.display="block"; empty.style.display="none"; stats.style.display="block";
-  stats.innerHTML = `输入 <b>${document.getElementById("batchInput").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).length}</b> 个查询词，命中 <b class="hl">${list.length}</b> 家（已去重），合计 <b>${cf(list.reduce((s,d)=>s+d.total,0))}</b> 元`;
+  stats.innerHTML = `输入 <b>${document.getElementById("batchInput").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).length}</b> 个查询词，命中 <b class="hl">${list.length}</b> 家（已去重），合计 <b>${cf(list.reduce((s,d)=>s+d.total+d.m7,0))}</b> 元`;
 
   tbody.innerHTML = list.map(d=>{
     const cells = d.m.map(v=>`<td class="${v===0?'zero':''}">${full(v)}</td>`).join("");
     const m7cell = `<td class="${d.m7===0?'zero':''}">${full(d.m7)}</td>`;
-    const avg = d.avg==null ? '<td class="zero">—</td>' : `<td>${full(d.avg)}</td>`;
-    return `<tr data-code="${d.code}"><td class="code">${escapeHtml(d.code)}</td><td class="name">${escapeHtml(d.name)}</td>${cells}${m7cell}<td class="total">${full(d.total)}</td>${avg}</tr>`;
+    const last3avg = (d.m[4] + d.m[5] + d.m7) / 3;
+    const avg = `<td>${full(last3avg)}</td>`;
+    return `<tr data-code="${d.code}"><td class="code">${escapeHtml(d.code)}</td><td class="name">${escapeHtml(d.name)}</td>${cells}${m7cell}<td class="total">${full(d.total + d.m7)}</td>${avg}</tr>`;
   }).join("");
 
   const sums=[0,0,0,0,0,0]; let tot=0, tot7=0;
   list.forEach(d=>{for(let i=0;i<6;i++)sums[i]+=d.m[i]; tot+=d.total; tot7+=d.m7;});
   for(let i=0;i<6;i++) document.getElementById("bf"+i).textContent = full(sums[i]);
   document.getElementById("bf6").textContent = full(tot7);
-  document.getElementById("bft").textContent = full(tot);
+  document.getElementById("bft").textContent = full(tot + tot7);
 
   document.querySelectorAll("#bt thead th .arr").forEach(a=>a.textContent="");
   const th=document.querySelector(`#bt thead th[data-k="${batchSortKey}"] .arr`);
@@ -1117,8 +1130,8 @@ function exportXLSX(){
     const row=[d.code,d.name];
     d.m.forEach(function(v){ row.push(v); });
     row.push(d.m7);
-    row.push(d.total);
-    row.push(d.avg==null? '': d.avg);
+    row.push(d.total + d.m7);
+    row.push((d.m[4]+d.m[5]+d.m7)/3);
     rows.push(row);
   });
   const blob=makeXLSX(rows);
